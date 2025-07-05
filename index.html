@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classic Tennis Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #2d5a2d;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        
+        .game-container {
+            text-align: center;
+            background-color: #0f3d0f;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+        
+        #gameCanvas {
+            border: 2px solid #fff;
+            background-color: #2d5a2d;
+            display: block;
+        }
+        
+        .score {
+            color: white;
+            font-size: 24px;
+            margin: 10px 0;
+        }
+        
+        .controls {
+            color: white;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1 style="color: white;">Classic Tennis Game</h1>
+        <div class="score">
+            <span>Player 1: <span id="player1Score">0</span></span>
+            <span style="margin-left: 50px;">Player 2: <span id="player2Score">0</span></span>
+        </div>
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+        <div class="controls">
+            <p>Player 1: W/S keys | Player 2: ↑/↓ keys</p>
+            <button onclick="resetGame()">Reset Game</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const player1ScoreElement = document.getElementById('player1Score');
+        const player2ScoreElement = document.getElementById('player2Score');
+
+        const game = {
+            ball: {
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+                radius: 8,
+                velocityX: 5,
+                velocityY: 3,
+                speed: 5
+            },
+            player1: {
+                x: 10,
+                y: canvas.height / 2 - 50,
+                width: 10,
+                height: 100,
+                score: 0,
+                upPressed: false,
+                downPressed: false
+            },
+            player2: {
+                x: canvas.width - 20,
+                y: canvas.height / 2 - 50,
+                width: 10,
+                height: 100,
+                score: 0,
+                upPressed: false,
+                downPressed: false
+            }
+        };
+
+        function drawRect(x, y, width, height, color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(x, y, width, height);
+        }
+
+        function drawCircle(x, y, radius, color) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawNet() {
+            ctx.setLineDash([5, 15]);
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 0);
+            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.strokeStyle = 'white';
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function draw() {
+            drawRect(0, 0, canvas.width, canvas.height, '#2d5a2d');
+            drawNet();
+            drawRect(game.player1.x, game.player1.y, game.player1.width, game.player1.height, 'white');
+            drawRect(game.player2.x, game.player2.y, game.player2.width, game.player2.height, 'white');
+            drawCircle(game.ball.x, game.ball.y, game.ball.radius, 'white');
+        }
+
+        function updatePaddles() {
+            if (game.player1.upPressed && game.player1.y > 0) {
+                game.player1.y -= 7;
+            }
+            if (game.player1.downPressed && game.player1.y < canvas.height - game.player1.height) {
+                game.player1.y += 7;
+            }
+            if (game.player2.upPressed && game.player2.y > 0) {
+                game.player2.y -= 7;
+            }
+            if (game.player2.downPressed && game.player2.y < canvas.height - game.player2.height) {
+                game.player2.y += 7;
+            }
+        }
+
+        function updateBall() {
+            game.ball.x += game.ball.velocityX;
+            game.ball.y += game.ball.velocityY;
+
+            if (game.ball.y + game.ball.radius > canvas.height || game.ball.y - game.ball.radius < 0) {
+                game.ball.velocityY = -game.ball.velocityY;
+            }
+
+            let player = (game.ball.x < canvas.width / 2) ? game.player1 : game.player2;
+
+            if (collision(game.ball, player)) {
+                let collidePoint = (game.ball.y - (player.y + player.height / 2));
+                collidePoint = collidePoint / (player.height / 2);
+                
+                let angleRad = (Math.PI / 4) * collidePoint;
+                let direction = (game.ball.x < canvas.width / 2) ? 1 : -1;
+                game.ball.velocityX = direction * game.ball.speed * Math.cos(angleRad);
+                game.ball.velocityY = game.ball.speed * Math.sin(angleRad);
+                
+                game.ball.speed += 0.1;
+            }
+
+            if (game.ball.x < 0) {
+                game.player2.score++;
+                updateScore();
+                resetBall();
+            } else if (game.ball.x > canvas.width) {
+                game.player1.score++;
+                updateScore();
+                resetBall();
+            }
+        }
+
+        function collision(ball, player) {
+            return ball.x - ball.radius < player.x + player.width &&
+                   ball.x + ball.radius > player.x &&
+                   ball.y - ball.radius < player.y + player.height &&
+                   ball.y + ball.radius > player.y;
+        }
+
+        function resetBall() {
+            game.ball.x = canvas.width / 2;
+            game.ball.y = canvas.height / 2;
+            game.ball.velocityX = (Math.random() > 0.5 ? 1 : -1) * 5;
+            game.ball.velocityY = (Math.random() - 0.5) * 5;
+            game.ball.speed = 5;
+        }
+
+        function updateScore() {
+            player1ScoreElement.textContent = game.player1.score;
+            player2ScoreElement.textContent = game.player2.score;
+        }
+
+        function resetGame() {
+            game.player1.score = 0;
+            game.player2.score = 0;
+            updateScore();
+            resetBall();
+        }
+
+        function gameLoop() {
+            updatePaddles();
+            updateBall();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener('keydown', (event) => {
+            switch(event.key) {
+                case 'w':
+                case 'W':
+                    game.player1.upPressed = true;
+                    break;
+                case 's':
+                case 'S':
+                    game.player1.downPressed = true;
+                    break;
+                case 'ArrowUp':
+                    game.player2.upPressed = true;
+                    break;
+                case 'ArrowDown':
+                    game.player2.downPressed = true;
+                    break;
+            }
+        });
+
+        document.addEventListener('keyup', (event) => {
+            switch(event.key) {
+                case 'w':
+                case 'W':
+                    game.player1.upPressed = false;
+                    break;
+                case 's':
+                case 'S':
+                    game.player1.downPressed = false;
+                    break;
+                case 'ArrowUp':
+                    game.player2.upPressed = false;
+                    break;
+                case 'ArrowDown':
+                    game.player2.downPressed = false;
+                    break;
+            }
+        });
+
+        gameLoop();
+    </script>
+</body>
+</html>
